@@ -171,6 +171,14 @@ export interface DocPage {
   deleted?: boolean
 }
 
+export interface OcrWord {
+  text: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export interface PdfSource {
   id: string
   /** Immutable bytes for this source PDF (original or a merged-in file). */
@@ -194,6 +202,8 @@ export interface OpenDoc {
   annotations: Record<string, Annotation>
   /** AcroForm field values the user has entered, keyed by field name. */
   fieldValues: Record<string, string | boolean>
+  /** OCR words per page id (unrotated PDF points), populated on demand. */
+  ocr?: Record<string, OcrWord[]>
   hasAcroForm: boolean
   /** True once we've OCR'd (or confirmed a real text layer exists). */
   textLayerReady: boolean

@@ -33,6 +33,7 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
   const annotationsMap = useApp((s) =>
     s.docs.find((d) => d.id === docId)?.annotations,
   )
+  const ocrWords = useApp((s) => s.docs.find((d) => d.id === docId)?.ocr?.[page.id])
 
   const pageAnnotations = useMemo<Annotation[]>(
     () =>
@@ -130,6 +131,10 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
         } catch {
           /* best-effort */
         }
+        // fall back to an OCR-backed text layer for scanned pages
+        if (!textEl.textContent?.trim() && ocrWords?.length) {
+          renderOcrLayer(textEl, ocrWords, scale)
+        }
       }
       if (!cancelled) setRendered(true)
     })()
@@ -144,6 +149,7 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
     page.sourceId,
     page.sourceIndex,
     page.imageAssetId,
+    ocrWords,
     cssW,
     cssH,
     scale,
@@ -220,3 +226,21 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
 }
 
 export const PageCanvas = memo(PageCanvasImpl)
+
+/** Build a selectable/searchable text layer from OCR word boxes. */
+function renderOcrLayer(
+  container: HTMLElement,
+  words: { text: string; x: number; y: number; w: number; h: number }[],
+  scale: number,
+) {
+  const frag = document.createDocumentFragment()
+  for (const w of words) {
+    const span = document.createElement('span')
+    span.textContent = w.text + ' '
+    span.style.cssText = `left:${w.x * scale}px;top:${w.y * scale}px;font-size:${
+      w.h * scale
+    }px;line-height:1;color:transparent;position:absolute;white-space:pre;transform:none`
+    frag.appendChild(span)
+  }
+  container.appendChild(frag)
+}

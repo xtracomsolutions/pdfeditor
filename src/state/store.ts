@@ -56,6 +56,7 @@ interface UIState {
   tool: ToolOptions
   /** An "armed" object waiting to be dropped on a page by the next click. */
   placement: Placement | null
+  ocr: { page: number; total: number; progress: number } | null
 }
 
 export interface Placement {
@@ -102,6 +103,14 @@ export interface AppState {
   ) => void
   setOutline: (outline: OutlineNode[]) => void
   markTextLayerReady: (docId: string) => void
+  setPageOcr: (
+    docId: string,
+    pageId: string,
+    words: import('./types').OcrWord[],
+  ) => void
+  setOcrProgress: (
+    p: { page: number; total: number; progress: number } | null,
+  ) => void
 
   // ---- history ----
   commit: () => void
@@ -157,6 +166,7 @@ export const useApp = create<AppState>()(
       selectedIds: [],
       currentPage: 1,
       placement: null,
+      ocr: null,
       tool: {
         stroke: '#e5484d',
         fill: 'transparent',
@@ -358,6 +368,20 @@ export const useApp = create<AppState>()(
       set((s) => {
         const d = s.docs.find((x) => x.id === docId)
         if (d) d.textLayerReady = true
+      }),
+
+    setPageOcr: (docId, pageId, words) =>
+      set((s) => {
+        const d = s.docs.find((x) => x.id === docId)
+        if (!d) return
+        if (!d.ocr) d.ocr = {}
+        d.ocr[pageId] = words
+        d.textLayerReady = true
+      }),
+
+    setOcrProgress: (p) =>
+      set((s) => {
+        s.ui.ocr = p
       }),
 
     commit: () =>

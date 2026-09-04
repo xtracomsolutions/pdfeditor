@@ -12,10 +12,28 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'fonts/*.woff2'],
       workbox: {
-        // pdf.js worker, tesseract wasm/lang data can be large
-        maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,wasm}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        // precache the app + pdf.js; the OCR engine is big and optional, so
+        // cache it on first use instead.
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['**/tesseract/**', '**/pdfjs/**'],
         navigateFallbackDenylist: [/^\/api/],
+        runtimeCaching: [
+          {
+            urlPattern: /\/tesseract\/.*/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'redline-ocr',
+              expiration: { maxEntries: 12 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: /\/pdfjs\/.*/,
+            handler: 'CacheFirst',
+            options: { cacheName: 'redline-pdfjs', expiration: { maxEntries: 60 } },
+          },
+        ],
       },
       manifest: {
         name: 'Redline — Xtracom Solutions',

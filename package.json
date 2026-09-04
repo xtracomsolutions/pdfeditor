@@ -8,9 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "sync:pdfjs": "node -e \"const fs=require('fs');for(const d of ['cmaps','standard_fonts'])fs.cpSync('node_modules/pdfjs-dist/'+d,'public/pdfjs/'+d,{recursive:true});console.log('pdfjs assets synced')\"",
-    "prebuild": "npm run sync:pdfjs",
-    "postinstall": "npm run sync:pdfjs"
+    "prebuild": "node scripts/sync-assets.mjs",
+    "postinstall": "node scripts/sync-assets.mjs",
+    "sync:assets": "node scripts/sync-assets.mjs"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",

@@ -2,6 +2,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useApp } from '../state/store'
 import { useOpenFiles } from '../lib/useOpenFiles'
 import { useExport } from '../lib/useExport'
+import { useOcr } from '../lib/useOcr'
 import {
   IconDownload,
   IconFit,
@@ -56,6 +57,7 @@ export function TopBar() {
     busy: exporting,
     hasRedactions,
   } = useExport()
+  const { runOcr } = useOcr()
   const {
     ui,
     activeDoc,
@@ -171,8 +173,25 @@ export function TopBar() {
             <IconMoon />
           </ChromeButton>
           {doc && !doc.textLayerReady && (
-            <ChromeButton title="Run OCR (scanned document)">
-              <IconOcr />
+            <ChromeButton
+              title={
+                ui.ocr
+                  ? `OCR — page ${ui.ocr.page}/${ui.ocr.total}`
+                  : 'Make searchable (OCR this scanned document)'
+              }
+              active={!!ui.ocr}
+              onClick={() => !ui.ocr && runOcr()}
+            >
+              {ui.ocr ? (
+                <span className="text-[10px] font-semibold tabular-nums">
+                  {Math.round(
+                    ((ui.ocr.page - 1 + ui.ocr.progress) / ui.ocr.total) * 100,
+                  )}
+                  %
+                </span>
+              ) : (
+                <IconOcr />
+              )}
             </ChromeButton>
           )}
           <div className="mx-1 h-5 w-px bg-chrome-line" />
