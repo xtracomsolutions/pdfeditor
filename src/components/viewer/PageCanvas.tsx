@@ -1,8 +1,11 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { getPageProxy } from '../../lib/pdf/registry'
 import { TextLayer, type PDFPageProxy } from '../../lib/pdf/pdfjs'
-import type { DocPage } from '../../state/types'
+import type { Annotation, DocPage } from '../../state/types'
 import { useApp } from '../../state/store'
+import { selectionQuads } from '../../lib/pdf/textMarkup'
+import { makeTextMarkup } from '../../lib/annotations/factory'
+import { AnnotationLayer } from './AnnotationLayer'
 
 interface Props {
   docId: string
@@ -12,8 +15,9 @@ interface Props {
 }
 
 /**
- * One rendered page: a bitmap canvas plus a selectable/searchable text layer.
- * Rendering is deferred until the page scrolls near the viewport.
+ * One rendered page: a bitmap canvas, a selectable/searchable text layer, and
+ * the annotation overlay. Rendering is deferred until the page nears the
+ * viewport.
  */
 function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -22,9 +26,22 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
   const [visible, setVisible] = useState(false)
   const [rendered, setRendered] = useState(false)
   const nightMode = useApp((s) => s.ui.nightMode)
+  const tool = useApp((s) => s.ui.activeTool)
+  const opts = useApp((s) => s.ui.tool)
+  const addAnnotation = useApp((s) => s.addAnnotation)
+  const annotationsMap = useApp((s) =>
+    s.docs.find((d) => d.id === docId)?.annotations,
+  )
+
+  const pageAnnotations = useMemo<Annotation[]>(
+    () =>
+      annotationsMap
+        ? Object.values(annotationsMap).filter((a) => a.pageId === page.id)
+        : [],
+    [annotationsMap, page.id],
+  )
 
   const rotation = page.userRotation
-  // pdf.js viewport at scale 1 gives unrotated size; rotation swaps axes.
   const rot = rotation % 180 === 0
   const cssW = (rot ? page.width : page.height) * scale
   const cssH = (rot ? page.height : page.width) * scale
@@ -70,7 +87,6 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
       }
       if (cancelled) return
 
-      // text layer
       const textEl = textRef.current
       if (textEl) {
         textEl.replaceChildren()
@@ -87,7 +103,7 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
           })
           await tl.render()
         } catch {
-          /* text layer is best-effort */
+          /* best-effort */
         }
       }
       if (!cancelled) setRendered(true)
@@ -99,12 +115,39 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
     }
   }, [visible, docId, page.sourceIndex, scale, rotation])
 
+  // text-markup tools: turn the current text selection into an annotation
+  const isMarkup =
+    tool === 'highlight' || tool === 'underline' || tool === 'strikeout'
+
+  const applyMarkupFromSelection = () => {
+    const sel = window.getSelection()
+    const textEl = textRef.current
+    const wrap = wrapRef.current
+    if (!sel || sel.isCollapsed || !textEl || !wrap) return
+    if (!textEl.contains(sel.anchorNode) && !textEl.contains(sel.focusNode))
+      return
+    const range = sel.getRangeAt(0)
+    const pageBox = wrap.getBoundingClientRect()
+    const quads = selectionQuads(range, textEl, page, pageBox, scale)
+    if (!quads.length) return
+    addAnnotation(
+      makeTextMarkup(
+        page.id,
+        tool as 'highlight' | 'underline' | 'strikeout',
+        quads,
+        opts,
+      ),
+    )
+    sel.removeAllRanges()
+  }
+
   return (
     <div
       ref={wrapRef}
       data-page={pageNumber}
       className="relative shrink-0 bg-paper shadow-[0_2px_16px_rgba(0,0,0,0.45)] ring-1 ring-black/20"
       style={{ width: cssW, height: cssH }}
+      onMouseUp={isMarkup ? applyMarkupFromSelection : undefined}
     >
       <canvas
         ref={canvasRef}
@@ -113,7 +156,19 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
           filter: nightMode ? 'invert(1) hue-rotate(180deg)' : undefined,
         }}
       />
-      <div ref={textRef} className="textLayer" />
+      <div
+        ref={textRef}
+        className="textLayer"
+        style={{ pointerEvents: isMarkup || tool === 'text-select' ? 'auto' : 'none' }}
+      />
+      {rendered && (
+        <AnnotationLayer
+          docId={docId}
+          page={page}
+          scale={scale}
+          annotations={pageAnnotations}
+        />
+      )}
       {!rendered && (
         <div className="absolute inset-0 grid place-items-center text-body-muted">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-paper-line border-t-accent" />

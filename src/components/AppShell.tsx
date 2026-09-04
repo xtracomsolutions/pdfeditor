@@ -3,6 +3,7 @@ import { useApp } from '../state/store'
 import { useOpenFiles } from '../lib/useOpenFiles'
 import { TopBar } from './TopBar'
 import { TabStrip } from './TabStrip'
+import { ToolOptionsBar } from './ToolOptionsBar'
 import { Toolbar } from './Toolbar'
 import { ThumbnailRail } from './ThumbnailRail'
 import { OutlinePanel } from './OutlinePanel'
@@ -15,7 +16,8 @@ export function AppShell() {
   const docs = useApp((s) => s.docs)
   const doc = useApp((s) => s.docs.find((d) => d.id === s.activeDocId) ?? null)
   const ui = useApp((s) => s.ui)
-  const { undo, redo, setSearch, setTool } = useApp()
+  const { undo, redo, setSearch, setTool, removeAnnotations, select } = useApp()
+  const selectedIds = useApp((s) => s.ui.selectedIds)
   const { openFiles, openBytes } = useOpenFiles()
   const [dragging, setDragging] = useState(false)
 
@@ -39,13 +41,22 @@ export function AppShell() {
       const typing = tag === 'INPUT' || tag === 'TEXTAREA'
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault()
-        e.shiftKey ? redo() : undo()
+        if (e.shiftKey) redo()
+        else undo()
       } else if (mod && e.key.toLowerCase() === 'y') {
         e.preventDefault()
         redo()
       } else if (mod && e.key.toLowerCase() === 'f') {
         e.preventDefault()
         setSearch(true)
+      } else if (!typing && (e.key === 'Delete' || e.key === 'Backspace')) {
+        if (selectedIds.length) {
+          e.preventDefault()
+          removeAnnotations(selectedIds)
+        }
+      } else if (!typing && e.key === 'Escape') {
+        select([])
+        setTool('select')
       } else if (!typing && !mod) {
         const map: Record<string, Parameters<typeof setTool>[0]> = {
           v: 'select',
@@ -61,7 +72,7 @@ export function AppShell() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, setSearch, setTool])
+  }, [undo, redo, setSearch, setTool, removeAnnotations, select, selectedIds])
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -86,6 +97,7 @@ export function AppShell() {
     >
       <TopBar />
       <TabStrip />
+      {doc && <ToolOptionsBar />}
 
       <div className="relative flex min-h-0 flex-1">
         {docs.length > 0 && <Toolbar />}

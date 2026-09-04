@@ -1,5 +1,7 @@
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useApp } from '../state/store'
 import { useOpenFiles } from '../lib/useOpenFiles'
+import { useExport } from '../lib/useExport'
 import {
   IconDownload,
   IconFit,
@@ -48,6 +50,7 @@ function ChromeButton({
 
 export function TopBar() {
   const { pickFiles } = useOpenFiles()
+  const { run: runExport, busy: exporting } = useExport()
   const {
     ui,
     activeDoc,
@@ -168,13 +171,42 @@ export function TopBar() {
             </ChromeButton>
           )}
           <div className="mx-1 h-5 w-px bg-chrome-line" />
-          <button
-            className="flex h-8 items-center gap-1.5 rounded-md bg-accent px-3 text-xs font-semibold text-white transition hover:bg-accent-dark"
-            title="Export PDF"
-          >
-            <IconDownload width={15} height={15} />
-            Export
-          </button>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                disabled={exporting}
+                className="flex h-8 items-center gap-1.5 rounded-md bg-accent px-3 text-xs font-semibold text-white transition hover:bg-accent-dark disabled:opacity-60"
+                title="Export PDF"
+              >
+                <IconDownload width={15} height={15} />
+                {exporting ? 'Exporting…' : 'Export'}
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={6}
+                className="z-50 w-64 rounded-lg border border-chrome-line bg-ink-2 p-1 text-sm text-chrome-text shadow-2xl"
+              >
+                <DropdownMenu.Item
+                  onSelect={() => runExport({ mode: 'flatten' })}
+                  className="cursor-pointer rounded-md px-2.5 py-2 outline-none data-[highlighted]:bg-white/8"
+                >
+                  <div className="font-medium">Flattened PDF</div>
+                  <div className="text-xs text-chrome-muted">
+                    Markup baked into the page, forms flattened.
+                  </div>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  disabled
+                  className="rounded-md px-2.5 py-2 text-chrome-muted opacity-50"
+                >
+                  <div className="font-medium">Editable PDF</div>
+                  <div className="text-xs">Coming soon — live annotations.</div>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </>
       )}
 

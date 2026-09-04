@@ -29,6 +29,16 @@ interface HistoryState {
   future: DocSnapshot[]
 }
 
+export interface ToolOptions {
+  stroke: string
+  fill: string
+  strokeWidth: number
+  opacity: number
+  highlightColor: string
+  fontSize: number
+  fontFamily: string
+}
+
 interface UIState {
   activeTool: ToolId
   zoom: number
@@ -42,6 +52,7 @@ interface UIState {
   searchQuery: string
   selectedIds: string[]
   currentPage: number
+  tool: ToolOptions
 }
 
 export interface AppState {
@@ -80,6 +91,7 @@ export interface AppState {
 
   // ---- ui ----
   setTool: (t: ToolId) => void
+  setToolOption: <K extends keyof ToolOptions>(k: K, v: ToolOptions[K]) => void
   setZoom: (z: number, fit?: FitMode) => void
   setFitMode: (f: FitMode) => void
   toggleNight: () => void
@@ -92,10 +104,15 @@ export interface AppState {
 
 const HISTORY_LIMIT = 60
 
+/** Deep clone of pure annotation/page data (no funcs, DOM nodes or proxies). */
+export function clone<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T
+}
+
 function snapshot(doc: OpenDoc): DocSnapshot {
   return {
     pages: doc.pages.map((p) => ({ ...p })),
-    annotations: structuredClone(doc.annotations),
+    annotations: clone(doc.annotations),
   }
 }
 
@@ -117,6 +134,15 @@ export const useApp = create<AppState>()(
       searchQuery: '',
       selectedIds: [],
       currentPage: 1,
+      tool: {
+        stroke: '#e5484d',
+        fill: 'transparent',
+        strokeWidth: 2,
+        opacity: 1,
+        highlightColor: '#ffd23f',
+        fontSize: 14,
+        fontFamily: 'Helvetica',
+      },
     },
 
     addDoc: (input) => {
@@ -326,6 +352,10 @@ export const useApp = create<AppState>()(
       set((s) => {
         s.ui.activeTool = t
       }),
+    setToolOption: (k, v) =>
+      set((s) => {
+        s.ui.tool[k] = v
+      }),
     setZoom: (z, fit) =>
       set((s) => {
         s.ui.zoom = Math.min(8, Math.max(0.1, z))
@@ -364,3 +394,6 @@ export const useApp = create<AppState>()(
       }),
   })),
 )
+
+if (import.meta.env.DEV)
+  (window as unknown as { __app: typeof useApp }).__app = useApp

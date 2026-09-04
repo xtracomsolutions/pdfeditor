@@ -86,27 +86,9 @@ h3,
   border-radius: 6px;
 }
 
-/* pdf.js text layer (selection + search) */
-.textLayer {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  opacity: 1;
-  line-height: 1;
-  text-size-adjust: none;
-  forced-color-adjust: none;
-  transform-origin: 0 0;
-  z-index: 2;
-}
-.textLayer span,
-.textLayer br {
-  color: transparent;
-  position: absolute;
-  white-space: pre;
-  cursor: text;
-  transform-origin: 0 0;
-}
-.textLayer span::selection {
+/* pdf.js text-layer base styles come from pdfjs-dist/web/pdf_viewer.css.
+   Only our own visual tweaks live here. */
+.textLayer ::selection {
   background: color-mix(in srgb, var(--color-accent) 45%, transparent);
 }
 .textLayer .redline-search-hit {

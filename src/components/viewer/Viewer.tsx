@@ -10,7 +10,10 @@ export function Viewer({ doc }: { doc: OpenDoc }) {
   const { zoom, fitMode, spread } = useApp((s) => s.ui)
   const setZoom = useApp((s) => s.setZoom)
   const setCurrentPage = useApp((s) => s.setCurrentPage)
-  const [containerW, setContainerW] = useState(0)
+  const [{ containerW, containerH }, setSize] = useState({
+    containerW: 0,
+    containerH: 0,
+  })
 
   // widest page drives fit-to-width so every page aligns
   const maxW = Math.max(...doc.pages.map((p) => (p.userRotation % 180 === 0 ? p.width : p.height)))
@@ -19,9 +22,11 @@ export function Viewer({ doc }: { doc: OpenDoc }) {
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => setContainerW(el.clientWidth))
+    const measure = () =>
+      setSize({ containerW: el.clientWidth, containerH: el.clientHeight })
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
-    setContainerW(el.clientWidth)
+    measure()
     return () => ro.disconnect()
   }, [])
 
@@ -31,11 +36,10 @@ export function Viewer({ doc }: { doc: OpenDoc }) {
   let scale = zoom
   if (fitMode === 'width' && containerW)
     scale = (containerW - pad - (cols - 1) * GAP) / (maxW * cols)
-  else if (fitMode === 'page' && containerW) {
-    const h = (scrollRef.current?.clientHeight ?? 0) - pad
+  else if (fitMode === 'page' && containerW && containerH) {
     scale = Math.min(
       (containerW - pad - (cols - 1) * GAP) / (maxW * cols),
-      h / maxH,
+      (containerH - pad) / maxH,
     )
   } else if (fitMode === 'actual') scale = 1
 

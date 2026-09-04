@@ -3,6 +3,8 @@
  * works fully offline with no CDN dependency.
  */
 import * as pdfjs from 'pdfjs-dist'
+// Official text-layer / annotation-layer styles for the installed pdf.js.
+import 'pdfjs-dist/web/pdf_viewer.css'
 // eslint-disable-next-line import/no-unresolved -- Vite worker import
 import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
 import type {
