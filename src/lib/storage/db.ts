@@ -7,17 +7,23 @@
  *  - `assets`    binary blobs (inserted images, signature PNGs) referenced by id
  */
 import Dexie, { type EntityTable } from 'dexie'
-import type { Annotation, DocPage, OutlineNode, SavedSignature } from '../../state/types'
+import type {
+  Annotation,
+  DocPage,
+  OutlineNode,
+  SavedSignature,
+} from '../../state/types'
 
 export interface SessionRecord {
   id: string
   name: string
-  bytes: Blob
+  sources: { id: string; label: string; blob: Blob }[]
   pages: DocPage[]
   outline: OutlineNode[]
   annotations: Record<string, Annotation>
-  pageCount: number
+  fieldValues: Record<string, string | boolean>
   hasAcroForm: boolean
+  textLayerReady: boolean
   savedAt: number
 }
 
@@ -44,7 +50,7 @@ const db = new Dexie('redline') as Dexie & {
   assets: EntityTable<AssetRecord, 'id'>
 }
 
-db.version(1).stores({
+db.version(2).stores({
   sessions: 'id, savedAt, name',
   recents: 'id, openedAt',
   signatures: 'id, createdAt',

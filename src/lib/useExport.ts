@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useApp } from '../state/store'
 import { exportPdf, type ExportOptions } from './export/exportPdf'
+import { exportRedacted } from './export/redact'
 
 function triggerDownload(bytes: Uint8Array, name: string) {
   const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
@@ -30,5 +31,25 @@ export function useExport() {
     }
   }, [])
 
-  return { run, busy }
+  const runRedacted = useCallback(async () => {
+    const doc = useApp.getState().activeDoc()
+    if (!doc) return
+    setBusy(true)
+    try {
+      const bytes = await exportRedacted(doc)
+      const base = doc.name.replace(/\.pdf$/i, '')
+      triggerDownload(bytes, `${base} (redacted).pdf`)
+    } finally {
+      setBusy(false)
+    }
+  }, [])
+
+  const hasRedactions = useApp((s) => {
+    const d = s.docs.find((x) => x.id === s.activeDocId)
+    return d
+      ? Object.values(d.annotations).some((a) => a.kind === 'redaction')
+      : false
+  })
+
+  return { run, runRedacted, busy, hasRedactions }
 }

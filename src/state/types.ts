@@ -192,6 +192,8 @@ export interface OpenDoc {
   pages: DocPage[]
   outline: OutlineNode[]
   annotations: Record<string, Annotation>
+  /** AcroForm field values the user has entered, keyed by field name. */
+  fieldValues: Record<string, string | boolean>
   hasAcroForm: boolean
   /** True once we've OCR'd (or confirmed a real text layer exists). */
   textLayerReady: boolean

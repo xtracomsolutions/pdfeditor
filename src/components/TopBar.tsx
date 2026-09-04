@@ -50,7 +50,12 @@ function ChromeButton({
 
 export function TopBar() {
   const { pickFiles } = useOpenFiles()
-  const { run: runExport, busy: exporting } = useExport()
+  const {
+    run: runExport,
+    runRedacted,
+    busy: exporting,
+    hasRedactions,
+  } = useExport()
   const {
     ui,
     activeDoc,
@@ -204,6 +209,23 @@ export function TopBar() {
                   <div className="font-medium">Editable PDF</div>
                   <div className="text-xs">Coming soon — live annotations.</div>
                 </DropdownMenu.Item>
+                {hasRedactions && (
+                  <>
+                    <DropdownMenu.Separator className="my-1 h-px bg-chrome-line" />
+                    <DropdownMenu.Item
+                      onSelect={() => runRedacted()}
+                      className="cursor-pointer rounded-md px-2.5 py-2 outline-none data-[highlighted]:bg-white/8"
+                    >
+                      <div className="font-medium text-accent">
+                        Apply redactions &amp; export
+                      </div>
+                      <div className="text-xs text-chrome-muted">
+                        Redacted pages are flattened to images — content under
+                        the marks is permanently removed.
+                      </div>
+                    </DropdownMenu.Item>
+                  </>
+                )}
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>

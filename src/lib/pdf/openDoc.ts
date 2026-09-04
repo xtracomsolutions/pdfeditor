@@ -55,6 +55,7 @@ export async function buildOpenDoc(
       pages,
       outline: rawOutline as OutlineNode[],
       annotations: {},
+      fieldValues: {},
       hasAcroForm: acro,
       textLayerReady: textChars > 0,
     },

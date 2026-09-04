@@ -121,6 +121,7 @@ export function usePageOps() {
         pages: newPages,
         outline: [],
         annotations,
+        fieldValues: {},
         hasAcroForm: false,
         textLayerReady: src.textLayerReady,
       })

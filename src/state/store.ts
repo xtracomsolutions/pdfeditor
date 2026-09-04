@@ -85,6 +85,7 @@ export interface AppState {
   addAnnotation: (a: Annotation) => void
   updateAnnotation: (id: string, patch: Partial<Annotation>) => void
   removeAnnotations: (ids: string[]) => void
+  setFieldValue: (name: string, value: string | boolean) => void
 
   // ---- pages ----
   reorderPage: (from: number, to: number) => void
@@ -245,6 +246,14 @@ export const useApp = create<AppState>()(
         s.ui.selectedIds = s.ui.selectedIds.filter((x) => !ids.includes(x))
       })
     },
+
+    setFieldValue: (name, value) =>
+      set((s) => {
+        const d = s.docs.find((x) => x.id === s.activeDocId)
+        if (!d) return
+        d.fieldValues[name] = value
+        d.dirty = true
+      }),
 
     reorderPage: (from, to) => {
       get().commit()

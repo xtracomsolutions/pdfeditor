@@ -52,54 +52,129 @@ export interface ExportOptions {
   scrubMetadata?: boolean
 }
 
+/**
+ * A "simple" doc is a single unmodified source: one PdfSource, every page
+ * present in original order. For those we can open the source directly and keep
+ * its AcroForm, so filled fields survive. Reordered / merged docs take the
+ * page-copy path (pdf-lib does not carry the form across copyPages).
+ */
+function isSimple(doc: OpenDoc): boolean {
+  if (doc.sources.length !== 1) return false
+  return doc.pages.every(
+    (p, i) => p.sourceId === doc.sources[0].id && p.sourceIndex === i,
+  )
+}
+
 export async function exportPdf(
   doc: OpenDoc,
   opts: ExportOptions = {},
 ): Promise<Uint8Array> {
-  const out = await PDFDocument.create()
+  const simple = isSimple(doc)
+  const out = simple
+    ? await PDFDocument.load(doc.sources[0].bytes, { ignoreEncryption: true })
+    : await PDFDocument.create()
   const helv = await out.embedFont(StandardFonts.Helvetica)
   const helvBold = await out.embedFont(StandardFonts.HelveticaBold)
 
-  // one PDFDocument per distinct source, loaded lazily
-  const sources = new Map<string, Promise<PDFDocument>>()
-  const sourceDoc = (id: string) => {
-    let p = sources.get(id)
-    if (!p) {
-      const bytes = doc.sources.find((s) => s.id === id)!.bytes
-      p = PDFDocument.load(bytes, { ignoreEncryption: true })
-      sources.set(id, p)
+  // fill + flatten AcroForm on the simple path. We probe each typed getter
+  // rather than switch on constructor.name (unreliable after bundling).
+  if (simple && Object.keys(doc.fieldValues).length) {
+    try {
+      const form = out.getForm()
+      for (const [name, value] of Object.entries(doc.fieldValues)) {
+        const attempts: (() => void)[] = [
+          () => {
+            const tf = form.getTextField(name)
+            tf.setFontSize(11)
+            tf.setText(String(value ?? ''))
+          },
+          () =>
+            value
+              ? form.getCheckBox(name).check()
+              : form.getCheckBox(name).uncheck(),
+          () => form.getDropdown(name).select(String(value)),
+          () => form.getRadioGroup(name).select(String(value)),
+          () => form.getOptionList(name).select(String(value)),
+        ]
+        for (const run of attempts) {
+          try {
+            run()
+            break
+          } catch {
+            /* wrong type — try next */
+          }
+        }
+      }
+      try {
+        form.updateFieldAppearances(helv)
+      } catch {
+        /* ignore */
+      }
+      form.flatten()
+    } catch {
+      /* no form */
     }
-    return p
   }
 
-  // rebuild page order from the model, carrying user rotation. Copy each page
-  // on its own so duplicated source pages produce independent page objects.
-  for (let i = 0; i < doc.pages.length; i++) {
-    const dp = doc.pages[i]
-    let page: PDFPage
-    if (dp.sourceId) {
-      const sd = await sourceDoc(dp.sourceId)
-      const [p] = await out.copyPages(sd, [dp.sourceIndex])
-      page = out.addPage(p)
-    } else if (dp.imageAssetId) {
-      page = out.addPage([dp.width, dp.height])
-      await embedAsset(out, page, dp.imageAssetId, {
-        x: 0,
-        y: 0,
-        w: dp.width,
-        h: dp.height,
-      })
-    } else {
-      page = out.addPage([dp.width, dp.height])
+  if (simple) {
+    const outPages = out.getPages()
+    for (let i = 0; i < doc.pages.length; i++) {
+      const dp = doc.pages[i]
+      const page = outPages[i]
+      if (!page) continue
+      if (dp.userRotation)
+        page.setRotation(
+          degrees((page.getRotation().angle + dp.userRotation) % 360),
+        )
+      const anns = Object.values(doc.annotations).filter(
+        (a) => a.pageId === dp.id,
+      )
+      for (const a of anns)
+        await drawAnnotation(page, a, { helv, helvBold, out })
+    }
+  } else {
+    // one PDFDocument per distinct source, loaded lazily
+    const sources = new Map<string, Promise<PDFDocument>>()
+    const sourceDoc = (id: string) => {
+      let p = sources.get(id)
+      if (!p) {
+        const bytes = doc.sources.find((s) => s.id === id)!.bytes
+        p = PDFDocument.load(bytes, { ignoreEncryption: true })
+        sources.set(id, p)
+      }
+      return p
     }
 
-    if (dp.userRotation) {
-      const base = page.getRotation().angle
-      page.setRotation(degrees((base + dp.userRotation) % 360))
-    }
+    for (let i = 0; i < doc.pages.length; i++) {
+      const dp = doc.pages[i]
+      let page: PDFPage
+      if (dp.sourceId) {
+        const sd = await sourceDoc(dp.sourceId)
+        const [p] = await out.copyPages(sd, [dp.sourceIndex])
+        page = out.addPage(p)
+      } else if (dp.imageAssetId) {
+        page = out.addPage([dp.width, dp.height])
+        await embedAsset(out, page, dp.imageAssetId, {
+          x: 0,
+          y: 0,
+          w: dp.width,
+          h: dp.height,
+        })
+      } else {
+        page = out.addPage([dp.width, dp.height])
+      }
 
-    const anns = Object.values(doc.annotations).filter((a) => a.pageId === dp.id)
-    for (const a of anns) await drawAnnotation(page, a, { helv, helvBold, out })
+      if (dp.userRotation) {
+        const base = page.getRotation().angle
+        page.setRotation(degrees((base + dp.userRotation) % 360))
+      }
+
+      const anns = Object.values(doc.annotations).filter(
+        (a) => a.pageId === dp.id,
+      )
+      for (const a of anns)
+        await drawAnnotation(page, a, { helv, helvBold, out })
+    }
   }
 
   if (opts.scrubMetadata || opts.mode !== 'editable') {

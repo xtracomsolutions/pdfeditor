@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '../state/store'
 import { useOpenFiles } from '../lib/useOpenFiles'
 import { usePageOps } from '../lib/usePageOps'
+import { useAutosave } from '../lib/useAutosave'
 import { TopBar } from './TopBar'
 import { TabStrip } from './TabStrip'
 import { ToolOptionsBar } from './ToolOptionsBar'
@@ -33,6 +34,7 @@ export function AppShell() {
   const pageOps = usePageOps()
   const [dragging, setDragging] = useState(false)
   const [sigOpen, setSigOpen] = useState(false)
+  useAutosave()
 
   // signature tool with nothing armed -> open the signature dialog
   useEffect(() => {

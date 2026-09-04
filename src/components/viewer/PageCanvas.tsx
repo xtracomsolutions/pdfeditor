@@ -6,6 +6,7 @@ import { useApp } from '../../state/store'
 import { selectionQuads } from '../../lib/pdf/textMarkup'
 import { makeTextMarkup } from '../../lib/annotations/factory'
 import { AnnotationLayer } from './AnnotationLayer'
+import { FormLayer } from './FormLayer'
 
 interface Props {
   docId: string
@@ -196,12 +197,15 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
         style={{ pointerEvents: isMarkup || tool === 'text-select' ? 'auto' : 'none' }}
       />
       {rendered && (
-        <AnnotationLayer
-          docId={docId}
-          page={page}
-          scale={scale}
-          annotations={pageAnnotations}
-        />
+        <>
+          <FormLayer docId={docId} page={page} scale={scale} />
+          <AnnotationLayer
+            docId={docId}
+            page={page}
+            scale={scale}
+            annotations={pageAnnotations}
+          />
+        </>
       )}
       {!rendered && (
         <div className="absolute inset-0 grid place-items-center text-body-muted">

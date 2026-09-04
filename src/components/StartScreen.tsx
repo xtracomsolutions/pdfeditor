@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useOpenFiles } from '../lib/useOpenFiles'
 import { listRecents, type RecentRecord } from '../lib/storage/db'
-import { IconPlus } from './icons'
+import {
+  discardAllSessions,
+  listRecoverable,
+  restoreSession,
+  type RecoverableSession,
+} from '../lib/useAutosave'
+import { IconPlus, IconRotate, IconX } from './icons'
 
 export function StartScreen() {
   const { pickFiles } = useOpenFiles()
   const [recents, setRecents] = useState<RecentRecord[]>([])
+  const [recover, setRecover] = useState<RecoverableSession[]>([])
 
   useEffect(() => {
     void listRecents().then(setRecents)
+    void listRecoverable().then(setRecover)
   }, [])
 
   return (
@@ -54,6 +62,45 @@ export function StartScreen() {
         <p className="mt-3 text-xs text-chrome-muted">
           or drop files anywhere in this window
         </p>
+
+        {recover.length > 0 && (
+          <div className="mt-8 rounded-lg border border-accent/40 bg-accent/10 p-3 text-left">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-accent">
+                <IconRotate width={13} height={13} />
+                Unsaved work from last session
+              </span>
+              <button
+                onClick={() => {
+                  void discardAllSessions()
+                  setRecover([])
+                }}
+                className="rounded p-0.5 text-chrome-muted hover:bg-white/10"
+                title="Discard"
+              >
+                <IconX width={13} height={13} />
+              </button>
+            </div>
+            <ul className="space-y-1">
+              {recover.map((r) => (
+                <li key={r.id}>
+                  <button
+                    onClick={async () => {
+                      await restoreSession(r.id)
+                      setRecover((s) => s.filter((x) => x.id !== r.id))
+                    }}
+                    className="flex w-full items-center justify-between rounded-md bg-ink/50 px-3 py-2 text-sm hover:bg-ink"
+                  >
+                    <span className="truncate text-chrome-text">{r.name}</span>
+                    <span className="ml-3 shrink-0 text-xs text-chrome-muted">
+                      {r.pageCount} pp · {new Date(r.savedAt).toLocaleString()}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {recents.length > 0 && (
           <div className="mt-10 text-left">
