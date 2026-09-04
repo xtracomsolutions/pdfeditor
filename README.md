@@ -38,14 +38,39 @@ tools → commands → annotation model (Zustand)
 ## Develop
 
 ```bash
-npm install
+npm install        # postinstall vendors pdf.js + tesseract assets into /public
 npm run dev
-npm run build      # tsc -b && vite build
+npm run build      # tsc -b && vite build (prebuild re-syncs assets)
 ```
 
-## Status
+`scripts/sync-assets.mjs` copies the pdf.js cmaps/fonts and the tesseract
+worker/wasm core into `/public`, and downloads the English OCR model once.
+Those folders are git-ignored and regenerated.
 
-Foundation + reader in place (open, virtualised render, zoom/fit, thumbnails,
-outline, find, tabs, night mode, page rotate/delete/duplicate, undo/redo).
-Next: annotation overlay + markup tools -> page ops -> fill/sign -> export
-pipeline -> redaction -> OCR -> PWA polish.
+## Features
+
+**Read** — virtualised rendering, continuous scroll, thumbnail rail, outline,
+full-text find, night mode, fit modes, multi-document tabs.
+
+**Mark up** — highlight / underline / strikeout snapped to real text, ink,
+rectangle / ellipse / line / arrow, text box, sticky note, stamps, images.
+Select / move / resize / restyle; snapshot undo/redo over everything.
+
+**Pages** — reorder (drag), rotate, duplicate, delete, insert blank, insert
+image as page, merge PDFs, extract to a new tab, split.
+
+**Fill & sign** — AcroForm detection + overlay fill, signature manager
+(draw / type / upload, saved & reusable).
+
+**Edit text** — white-out in the sampled background colour + retype.
+
+**Redact** — "Apply redactions & export" rasterises affected pages so nothing
+survives under the mark; clean pages stay vector text.
+
+**OCR** — on-device (tesseract.js), makes scans searchable and markable.
+
+**Export** — Flattened PDF, or a Redline PDF that looks flattened everywhere
+but reopens here with every markup still editable (model embedded in the
+catalog).
+
+**Offline** — installable PWA; OCR engine + CJK cmaps cached on first use.

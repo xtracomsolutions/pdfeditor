@@ -1,6 +1,7 @@
 /** Turn raw PDF bytes into an OpenDoc payload + its live pdf.js proxy. */
 import { nanoid } from '../id'
-import type { OpenDoc, OutlineNode } from '../../state/types'
+import type { Annotation, OpenDoc, OutlineNode } from '../../state/types'
+import { readEmbeddedModel } from '../export/exportPdf'
 import {
   hasAcroForm,
   loadPdf,
@@ -41,10 +42,29 @@ export async function buildOpenDoc(
     if (i < 3 && (await pageHasText(page))) textChars++
   }
 
-  const [rawOutline, acro] = await Promise.all([
+  const [rawOutline, acro, embedded] = await Promise.all([
     readOutline(doc),
     hasAcroForm(doc),
+    readEmbeddedModel(bytes),
   ])
+
+  // restore an embedded Redline model, remapping its page ids onto ours by order
+  const annotations: Record<string, Annotation> = {}
+  const fieldValues: Record<string, string | boolean> = embedded?.fieldValues ?? {}
+  if (embedded && embedded.pageIds.length) {
+    const idMap = new Map(
+      (
+        embedded.pageIds.map((oldId, i) => [oldId, pages[i]?.id]) as [
+          string,
+          string | undefined,
+        ][]
+      ).filter((e): e is [string, string] => !!e[1]),
+    )
+    for (const a of Object.values(embedded.annotations)) {
+      const newPageId = idMap.get(a.pageId)
+      if (newPageId) annotations[a.id] = { ...a, pageId: newPageId }
+    }
+  }
 
   return {
     doc,
@@ -54,8 +74,8 @@ export async function buildOpenDoc(
       sources: [{ id: sourceId, bytes, label: name }],
       pages,
       outline: rawOutline as OutlineNode[],
-      annotations: {},
-      fieldValues: {},
+      annotations,
+      fieldValues,
       hasAcroForm: acro,
       textLayerReady: textChars > 0,
     },

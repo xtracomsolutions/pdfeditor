@@ -13,6 +13,8 @@
  */
 import {
   PDFDocument,
+  PDFHexString,
+  PDFName,
   StandardFonts,
   degrees,
   rgb,
@@ -177,7 +179,24 @@ export async function exportPdf(
     }
   }
 
-  if (opts.scrubMetadata || opts.mode !== 'editable') {
+  // "editable" export embeds the annotation model so Redline can round-trip it
+  // with every markup still live. The visible layer stays flattened for other
+  // viewers.
+  if (opts.mode === 'editable') {
+    const payload = JSON.stringify({
+      v: 1,
+      name: doc.name,
+      pages: doc.pages.map((p) => p.id),
+      annotations: doc.annotations,
+      fieldValues: doc.fieldValues,
+    })
+    out.catalog.set(
+      PDFName.of('Redline'),
+      PDFHexString.fromText(payload),
+    )
+    out.setProducer('Redline')
+    out.setCreator('Redline')
+  } else {
     out.setTitle('')
     out.setAuthor('')
     out.setSubject('')
@@ -187,6 +206,32 @@ export async function exportPdf(
   }
 
   return out.save()
+}
+
+/** Read an embedded Redline model back out of a PDF, if present. */
+export async function readEmbeddedModel(bytes: Uint8Array): Promise<{
+  annotations: Record<string, Annotation>
+  fieldValues: Record<string, string | boolean>
+  pageIds: string[]
+} | null> {
+  try {
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
+    const entry = doc.catalog.get(PDFName.of('Redline'))
+    if (!entry) return null
+    const text = (entry as PDFHexString).decodeText()
+    const parsed = JSON.parse(text) as {
+      annotations: Record<string, Annotation>
+      fieldValues?: Record<string, string | boolean>
+      pages?: string[]
+    }
+    return {
+      annotations: parsed.annotations ?? {},
+      fieldValues: parsed.fieldValues ?? {},
+      pageIds: parsed.pages ?? [],
+    }
+  } catch {
+    return null
+  }
 }
 
 interface Ctx {

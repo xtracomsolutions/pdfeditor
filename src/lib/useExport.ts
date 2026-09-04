@@ -25,7 +25,8 @@ export function useExport() {
     try {
       const bytes = await exportPdf(doc, opts)
       const base = doc.name.replace(/\.pdf$/i, '')
-      triggerDownload(bytes, `${base} (redline).pdf`)
+      const suffix = opts.mode === 'editable' ? 'redline-editable' : 'redline'
+      triggerDownload(bytes, `${base} (${suffix}).pdf`)
     } finally {
       setBusy(false)
     }

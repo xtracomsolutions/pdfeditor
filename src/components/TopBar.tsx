@@ -268,11 +268,14 @@ export function TopBar() {
                   </div>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item
-                  disabled
-                  className="rounded-md px-2.5 py-2 text-chrome-muted opacity-50"
+                  onSelect={() => runExport({ mode: 'editable' })}
+                  className="cursor-pointer rounded-md px-2.5 py-2 outline-none data-[highlighted]:bg-white/8"
                 >
-                  <div className="font-medium">Editable PDF</div>
-                  <div className="text-xs">Coming soon — live annotations.</div>
+                  <div className="font-medium">Redline PDF (re-editable)</div>
+                  <div className="text-xs text-chrome-muted">
+                    Looks flattened everywhere, but reopens in Redline with
+                    every markup still editable.
+                  </div>
                 </DropdownMenu.Item>
                 {hasRedactions && (
                   <>
