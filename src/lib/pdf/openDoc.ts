@@ -1,7 +1,6 @@
 /** Turn raw PDF bytes into an OpenDoc payload + its live pdf.js proxy. */
 import { nanoid } from '../id'
 import type { Annotation, OpenDoc, OutlineNode } from '../../state/types'
-import { readEmbeddedModel } from '../export/exportPdf'
 import {
   hasAcroForm,
   loadPdf,
@@ -42,10 +41,12 @@ export async function buildOpenDoc(
     if (i < 3 && (await pageHasText(page))) textChars++
   }
 
+  // pdf-lib is only needed to peek at an embedded Redline model — load it
+  // lazily so the app shell + reader don't have to wait on it up front.
   const [rawOutline, acro, embedded] = await Promise.all([
     readOutline(doc),
     hasAcroForm(doc),
-    readEmbeddedModel(bytes),
+    import('../export/exportPdf').then((m) => m.readEmbeddedModel(bytes)),
   ])
 
   // restore an embedded Redline model, remapping its page ids onto ours by order

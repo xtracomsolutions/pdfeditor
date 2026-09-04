@@ -157,7 +157,37 @@ export function usePageOps() {
     [makeDocFromPages, deletePages],
   )
 
-  return { insertBlank, insertImages, mergePdf, extractPages, splitAt }
+  const movePageAcrossDocs = useCallback(
+    async (
+      fromDocId: string,
+      pageId: string,
+      toDocId: string,
+      afterPageId: string | undefined,
+      copy: boolean,
+    ) => {
+      const st = useApp.getState()
+      const from = st.docs.find((d) => d.id === fromDocId)
+      const page = from?.pages.find((p) => p.id === pageId)
+      if (!from || !page) return
+      // the target doc needs this page's PDF source registered under its own
+      // id before the move lands in state, or the first render finds nothing
+      if (page.sourceId) {
+        const src = from.sources.find((s) => s.id === page.sourceId)
+        if (src) await ensureSource(toDocId, src.id, src.bytes)
+      }
+      st.movePageBetweenDocs(fromDocId, pageId, toDocId, afterPageId, copy)
+    },
+    [],
+  )
+
+  return {
+    insertBlank,
+    insertImages,
+    mergePdf,
+    extractPages,
+    splitAt,
+    movePageAcrossDocs,
+  }
 }
 
 function structuredCloneSafe<T>(v: T): T {

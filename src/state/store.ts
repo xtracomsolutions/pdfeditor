@@ -104,6 +104,16 @@ export interface AppState {
   ) => void
   setOutline: (outline: OutlineNode[]) => void
   markTextLayerReady: (docId: string) => void
+  /** Move (or copy) one page — with its annotations — into another open doc.
+   *  Assumes the target doc's source registry already carries the page's
+   *  PdfSource (the caller ensures that before calling, since it's async). */
+  movePageBetweenDocs: (
+    fromDocId: string,
+    pageId: string,
+    toDocId: string,
+    afterPageId: string | undefined,
+    copy: boolean,
+  ) => void
   setPageOcr: (
     docId: string,
     pageId: string,
@@ -361,6 +371,52 @@ export const useApp = create<AppState>()(
         s.ui.selectedIds = []
       })
     },
+
+    movePageBetweenDocs: (fromDocId, pageId, toDocId, afterPageId, copy) =>
+      set((s) => {
+        if (fromDocId === toDocId) return
+        const from = s.docs.find((d) => d.id === fromDocId)
+        const to = s.docs.find((d) => d.id === toDocId)
+        if (!from || !to) return
+        const idx = from.pages.findIndex((p) => p.id === pageId)
+        if (idx < 0) return
+        if (!copy && from.pages.length <= 1) return
+
+        const hFrom = s.history[fromDocId] ?? { past: [], future: [] }
+        hFrom.past.push(snapshot(from))
+        hFrom.future = []
+        s.history[fromDocId] = hFrom
+        const hTo = s.history[toDocId] ?? { past: [], future: [] }
+        hTo.past.push(snapshot(to))
+        hTo.future = []
+        s.history[toDocId] = hTo
+
+        const original = from.pages[idx]
+        if (original.sourceId) {
+          const src = from.sources.find((x) => x.id === original.sourceId)
+          if (src && !to.sources.some((x) => x.id === src.id))
+            to.sources.push(src)
+        }
+        const newPage: DocPage = { ...original, id: copy ? nanoid() : original.id }
+
+        for (const [aid, a] of Object.entries(from.annotations)) {
+          if (a.pageId !== pageId) continue
+          to.annotations[copy ? nanoid() : aid] = { ...a, pageId: newPage.id }
+          if (!copy) delete from.annotations[aid]
+        }
+
+        if (!copy) from.pages.splice(idx, 1)
+        let at = to.pages.length
+        if (afterPageId) {
+          const i = to.pages.findIndex((p) => p.id === afterPageId)
+          if (i >= 0) at = i + 1
+        }
+        to.pages.splice(at, 0, newPage)
+
+        from.dirty = true
+        to.dirty = true
+        s.ui.selectedIds = []
+      }),
 
     setOutline: (outline) =>
       set((s) => {

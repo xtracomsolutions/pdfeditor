@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useApp } from '../state/store'
-import { exportPdf, type ExportOptions } from './export/exportPdf'
-import { exportRedacted } from './export/redact'
+import type { ExportOptions } from './export/exportPdf'
 
 function triggerDownload(bytes: Uint8Array, name: string) {
   const blob = new Blob([bytes as BlobPart], { type: 'application/pdf' })
@@ -23,6 +22,7 @@ export function useExport() {
     if (!doc) return
     setBusy(true)
     try {
+      const { exportPdf } = await import('./export/exportPdf')
       const bytes = await exportPdf(doc, opts)
       const base = doc.name.replace(/\.pdf$/i, '')
       const suffix = opts.mode === 'editable' ? 'redline-editable' : 'redline'
@@ -37,6 +37,7 @@ export function useExport() {
     if (!doc) return
     setBusy(true)
     try {
+      const { exportRedacted } = await import('./export/redact')
       const bytes = await exportRedacted(doc)
       const base = doc.name.replace(/\.pdf$/i, '')
       triggerDownload(bytes, `${base} (redacted).pdf`)

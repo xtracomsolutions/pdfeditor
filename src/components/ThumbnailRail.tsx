@@ -3,6 +3,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useApp } from '../state/store'
 import { getPageProxy } from '../lib/pdf/registry'
 import { usePageOps } from '../lib/usePageOps'
+import { PAGE_DRAG_MIME } from '../lib/dnd'
 import type { DocPage, OpenDoc } from '../state/types'
 import {
   IconCopy,
@@ -239,7 +240,14 @@ export function ThumbnailRail({ doc }: { doc: OpenDoc }) {
           <div
             key={p.id}
             draggable
-            onDragStart={() => setDragIdx(i)}
+            onDragStart={(e) => {
+              setDragIdx(i)
+              e.dataTransfer.setData(
+                PAGE_DRAG_MIME,
+                JSON.stringify({ docId: doc.id, pageId: p.id }),
+              )
+              e.dataTransfer.effectAllowed = 'copyMove'
+            }}
             onDragOver={(e) => {
               e.preventDefault()
               setOverIdx(i)

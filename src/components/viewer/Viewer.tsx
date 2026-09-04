@@ -48,6 +48,39 @@ export function Viewer({ doc }: { doc: OpenDoc }) {
       setZoom(scale, fitMode)
   }, [scale, fitMode, zoom, setZoom])
 
+  // pinch-to-zoom (touch only — mouse/trackpad zoom stays on the toolbar)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    let startDist = 0
+    let startZoom = 1
+    const dist = (t: TouchList) =>
+      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        startDist = dist(e.touches)
+        startZoom = useApp.getState().ui.zoom
+      }
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 2 || !startDist) return
+      e.preventDefault()
+      const next = (startZoom * dist(e.touches)) / startDist
+      useApp.getState().setZoom(Math.min(6, Math.max(0.2, next)), 'custom')
+    }
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) startDist = 0
+    }
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [])
+
   // track the page nearest the viewport centre
   useEffect(() => {
     const el = scrollRef.current

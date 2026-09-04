@@ -165,15 +165,35 @@ export function AppShell() {
       <div className="relative flex min-h-0 flex-1">
         {hasDocs && <Toolbar />}
 
-        {doc && ui.showOutline && <OutlinePanel doc={doc} />}
-        {doc && ui.showThumbnails && <ThumbnailRail doc={doc} />}
+        {/* Below ~1100px the side panels float over the viewer instead of
+            squeezing it — a normal desktop window keeps the pushed layout. */}
+        {doc && ui.showOutline && (
+          <div
+            className="absolute inset-y-0 z-30 shadow-2xl min-[1100px]:static min-[1100px]:z-auto min-[1100px]:shadow-none"
+            style={{ left: hasDocs ? 56 : 0 }}
+          >
+            <OutlinePanel doc={doc} />
+          </div>
+        )}
+        {doc && ui.showThumbnails && (
+          <div
+            className="absolute inset-y-0 z-30 shadow-2xl min-[1100px]:static min-[1100px]:z-auto min-[1100px]:shadow-none"
+            style={{ left: (hasDocs ? 56 : 0) + (ui.showOutline ? 256 : 0) }}
+          >
+            <ThumbnailRail doc={doc} />
+          </div>
+        )}
 
         <main className="relative min-w-0 flex-1">
           {doc ? <Viewer doc={doc} /> : <StartScreen />}
           {doc && ui.searchOpen && <SearchBar doc={doc} />}
         </main>
 
-        {doc && ui.showProperties && <PropertiesPanel doc={doc} />}
+        {doc && ui.showProperties && (
+          <div className="absolute inset-y-0 right-0 z-30 shadow-2xl min-[1100px]:static min-[1100px]:z-auto min-[1100px]:shadow-none">
+            <PropertiesPanel doc={doc} />
+          </div>
+        )}
 
         {dragging && (
           <div className="pointer-events-none absolute inset-0 z-50 m-3 grid place-items-center rounded-xl border-2 border-dashed border-accent bg-ink/70 backdrop-blur-sm">
