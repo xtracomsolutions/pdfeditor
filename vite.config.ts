@@ -3,14 +3,20 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
 
+// GitHub Pages serves this as a project site at /<repo>/, not the domain
+// root, so every absolute asset reference needs that prefix when building
+// there. Local dev and any host serving from the root stay at '/'.
+const base = process.env.GITHUB_ACTIONS ? '/pdfeditor/' : '/'
+
 // https://vite.dev/config/
 export default defineConfig({
+  base,
   plugins: [
     react(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'fonts/*.woff2'],
+      includeAssets: ['favicon.svg', 'icons/*.png', 'brand/*.jpg'],
       workbox: {
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // precache the app + pdf.js; the OCR engine is big and optional, so
@@ -44,12 +50,13 @@ export default defineConfig({
         background_color: '#16191d',
         display: 'standalone',
         orientation: 'any',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: `${base}icons/icon-192.png`, sizes: '192x192', type: 'image/png' },
+          { src: `${base}icons/icon-512.png`, sizes: '512x512', type: 'image/png' },
           {
-            src: '/icons/icon-512-maskable.png',
+            src: `${base}icons/icon-512-maskable.png`,
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
@@ -58,7 +65,7 @@ export default defineConfig({
         // Register as a PDF handler where the platform allows it
         file_handlers: [
           {
-            action: '/',
+            action: base,
             accept: { 'application/pdf': ['.pdf'] },
           },
         ],

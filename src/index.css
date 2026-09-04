@@ -1,19 +1,20 @@
 @import 'tailwindcss';
 
-/* self-hosted, latin subset — no CDN */
+/* self-hosted, latin subset — no CDN. Relative to this file so Vite's asset
+   pipeline hashes + base-prefixes them correctly under any deploy path. */
 @font-face {
   font-family: 'Inter';
   font-style: normal;
   font-weight: 400 600;
   font-display: swap;
-  src: url('/fonts/inter-latin.woff2') format('woff2');
+  src: url('./assets/fonts/inter-latin.woff2') format('woff2');
 }
 @font-face {
   font-family: 'Outfit';
   font-style: normal;
   font-weight: 500 700;
   font-display: swap;
-  src: url('/fonts/outfit-latin.woff2') format('woff2');
+  src: url('./assets/fonts/outfit-latin.woff2') format('woff2');
 }
 
 /*

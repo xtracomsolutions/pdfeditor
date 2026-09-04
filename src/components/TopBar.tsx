@@ -3,6 +3,7 @@ import { useApp } from '../state/store'
 import { useOpenFiles } from '../lib/useOpenFiles'
 import { useExport } from '../lib/useExport'
 import { useOcr } from '../lib/useOcr'
+import { asset } from '../lib/asset'
 import {
   IconChevronDown,
   IconDownload,
@@ -78,7 +79,7 @@ export function TopBar() {
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b border-chrome-line bg-ink px-3">
       <img
-        src="/brand/logo-horizontal.jpg"
+        src={asset('/brand/logo-horizontal.jpg')}
         alt="Xtracom Solutions"
         className="h-7 rounded"
       />

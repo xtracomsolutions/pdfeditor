@@ -8,6 +8,7 @@ import {
   type RecoverableSession,
 } from '../lib/useAutosave'
 import { IconPlus, IconRotate, IconX } from './icons'
+import { asset } from '../lib/asset'
 
 export function StartScreen() {
   const { pickFiles } = useOpenFiles()
@@ -40,7 +41,7 @@ export function StartScreen() {
 
       <div className="relative z-10 w-full max-w-lg text-center">
         <img
-          src="/brand/emblem.jpg"
+          src={asset('/brand/emblem.jpg')}
           alt=""
           className="mx-auto mb-6 h-20 w-20 rounded-2xl object-cover ring-1 ring-white/10"
         />
