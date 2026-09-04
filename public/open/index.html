@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Open Redline</title>
+<!--
+  Standalone bridge page, meant to be embedded (Google Sites "Embed by URL",
+  or any iframe). It never touches Redline's own storage or service worker —
+  its only job is to hand off to the real app in a fresh top-level tab, so
+  install / offline / autosave all keep working exactly as they do standalone.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700&family=Inter:wght@400;500&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  :root {
+    --ink: #16191d;
+    --accent: #4bafd6;
+    --accent-dark: #2d8db3;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    display: grid;
+    place-items: center;
+    background: var(--ink);
+    color: #eef2f4;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    text-align: center;
+    padding: 28px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(60% 90% at 85% 10%, rgba(75, 175, 214, 0.22), transparent 60%);
+    pointer-events: none;
+  }
+  .card {
+    position: relative;
+    max-width: 360px;
+  }
+  img.emblem {
+    width: 64px;
+    height: 64px;
+    border-radius: 15px;
+    object-fit: cover;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  h1 {
+    font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 16px 0 6px;
+  }
+  p {
+    margin: 0 0 22px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #b7c1c7;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 14.5px;
+    color: #08131a;
+    background: var(--accent);
+    border-radius: 10px;
+    padding: 12px 22px;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .btn:hover {
+    background: #63bfe0;
+  }
+  .hint {
+    margin-top: 14px;
+    font-size: 12px;
+    color: #8b959c;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="emblem" src="../brand/emblem.jpg" alt="" />
+    <h1>Redline</h1>
+    <p>Xtracom's PDF reader &amp; editor. Runs entirely in your browser — nothing you open is ever uploaded.</p>
+    <a class="btn" href="../" target="_blank" rel="noopener noreferrer" id="open-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        <path d="M15 3h6v6" />
+        <path d="M10 14L21 3" />
+      </svg>
+      Open Redline
+    </a>
+    <p class="hint">Opens in a new tab</p>
+  </div>
+</body>
+</html>
