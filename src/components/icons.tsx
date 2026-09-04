@@ -222,6 +222,12 @@ export const IconFit = (p: P) => (
     <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
   </S>
 )
+export const IconReplace = (p: P) => (
+  <S {...p}>
+    <path d="M4 6h16M4 12h10M4 18h16" />
+    <path d="M15 10l4 4-4 4" />
+  </S>
+)
 export const IconOcr = (p: P) => (
   <S {...p}>
     <path d="M4 8V5h4M20 8V5h-4M4 16v3h4M20 16v3h-4" />

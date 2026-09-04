@@ -4,6 +4,7 @@ import { useOpenFiles } from '../lib/useOpenFiles'
 import { useExport } from '../lib/useExport'
 import { useOcr } from '../lib/useOcr'
 import {
+  IconChevronDown,
   IconDownload,
   IconFit,
   IconMoon,
@@ -138,40 +139,85 @@ export function TopBar() {
           <div className="mx-1 h-5 w-px bg-chrome-line" />
 
           <ChromeButton
-            title="Pages"
-            active={ui.showThumbnails}
-            onClick={() => togglePanel('showThumbnails')}
-          >
-            <IconPages />
-          </ChromeButton>
-          <ChromeButton
-            title="Outline"
-            active={ui.showOutline}
-            onClick={() => togglePanel('showOutline')}
-          >
-            <IconOutline />
-          </ChromeButton>
-          <ChromeButton
-            title="Properties"
-            active={ui.showProperties}
-            onClick={() => togglePanel('showProperties')}
-          >
-            <IconSliders />
-          </ChromeButton>
-          <ChromeButton
             title="Find (Ctrl+F)"
             active={ui.searchOpen}
             onClick={() => setSearch(!ui.searchOpen)}
           >
             <IconSearch />
           </ChromeButton>
-          <ChromeButton
-            title="Night mode"
-            active={ui.nightMode}
-            onClick={toggleNight}
-          >
-            <IconMoon />
-          </ChromeButton>
+
+          <div className="hidden items-center min-[880px]:flex">
+            <ChromeButton
+              title="Pages"
+              active={ui.showThumbnails}
+              onClick={() => togglePanel('showThumbnails')}
+            >
+              <IconPages />
+            </ChromeButton>
+            <ChromeButton
+              title="Outline"
+              active={ui.showOutline}
+              onClick={() => togglePanel('showOutline')}
+            >
+              <IconOutline />
+            </ChromeButton>
+            <ChromeButton
+              title="Properties"
+              active={ui.showProperties}
+              onClick={() => togglePanel('showProperties')}
+            >
+              <IconSliders />
+            </ChromeButton>
+            <ChromeButton
+              title="Night mode"
+              active={ui.nightMode}
+              onClick={toggleNight}
+            >
+              <IconMoon />
+            </ChromeButton>
+          </div>
+
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button
+                title="View"
+                className="grid h-8 w-8 place-items-center rounded-md text-chrome-muted hover:bg-white/8 hover:text-chrome-text min-[880px]:hidden"
+              >
+                <IconChevronDown />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={6}
+                className="z-50 w-44 rounded-lg border border-chrome-line bg-ink-2 p-1 text-sm text-chrome-text shadow-2xl"
+              >
+                {(
+                  [
+                    ['showThumbnails', 'Pages', () => togglePanel('showThumbnails')],
+                    ['showOutline', 'Outline', () => togglePanel('showOutline')],
+                    [
+                      'showProperties',
+                      'Properties',
+                      () => togglePanel('showProperties'),
+                    ],
+                    ['nightMode', 'Night mode', toggleNight],
+                  ] as const
+                ).map(([key, label, fn]) => (
+                  <DropdownMenu.Item
+                    key={key}
+                    onSelect={fn}
+                    className="flex cursor-pointer items-center justify-between rounded-md px-2.5 py-1.5 outline-none data-[highlighted]:bg-white/8"
+                  >
+                    {label}
+                    {ui[key as keyof typeof ui] ? (
+                      <span className="text-accent">●</span>
+                    ) : null}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
           {doc && !doc.textLayerReady && (
             <ChromeButton
               title={

@@ -1,5 +1,21 @@
 @import 'tailwindcss';
 
+/* self-hosted, latin subset — no CDN */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 500 700;
+  font-display: swap;
+  src: url('/fonts/outfit-latin.woff2') format('woff2');
+}
+
 /*
   Redline — Xtracom Solutions
   Brand tokens sourced from the Xtracom website (home.html) and 10-year logo.
@@ -33,21 +49,6 @@
     Roboto, sans-serif;
 
   --radius-app: 10px;
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400 600;
-  font-display: swap;
-  src: local('Inter'), local('Inter-Regular');
-}
-@font-face {
-  font-family: 'Outfit';
-  font-style: normal;
-  font-weight: 400 700;
-  font-display: swap;
-  src: local('Outfit'), local('Outfit-Regular');
 }
 
 html,

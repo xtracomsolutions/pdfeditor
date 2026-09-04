@@ -114,9 +114,14 @@ export function AnnotationView({
           y={box.top}
           width={box.width}
           height={box.height}
-          fill={r.kind === 'whiteout' ? '#fff' : '#000'}
-          stroke={selected ? 'var(--color-accent)' : r.kind === 'whiteout' ? '#bbb' : '#000'}
-          strokeDasharray={r.kind === 'whiteout' ? '4 3' : undefined}
+          fill={r.kind === 'whiteout' ? (r.color ?? '#fff') : '#000'}
+          stroke={
+            selected
+              ? 'var(--color-accent)'
+              : r.kind === 'whiteout'
+                ? 'transparent'
+                : '#000'
+          }
         />
       </g>
     )

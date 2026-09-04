@@ -112,6 +112,14 @@ export function makeImageAnn(
   return { ...base(pageId), kind, rect, assetId, opacity: 1 }
 }
 
+export function makeWhiteout(
+  pageId: string,
+  rect: Rect,
+  color: string,
+): import('../../state/types').RedactionAnnotation {
+  return { ...base(pageId), kind: 'whiteout', rect, color }
+}
+
 export function makeStamp(
   pageId: string,
   rect: Rect,

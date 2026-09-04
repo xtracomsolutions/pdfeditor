@@ -13,6 +13,7 @@ import {
   IconNote,
   IconPen,
   IconRedact,
+  IconReplace,
   IconSignature,
   IconSquare,
   IconStamp,
@@ -47,6 +48,7 @@ const GROUPS: Item[][] = [
   ],
   [
     { id: 'textbox', label: 'Text box', Icon: IconText },
+    { id: 'replace-text', label: 'Replace text (white-out + retype)', Icon: IconReplace },
     { id: 'note', label: 'Sticky note', Icon: IconNote },
     { id: 'stamp', label: 'Stamp', Icon: IconStamp },
     { id: 'image', label: 'Image', Icon: IconImage },

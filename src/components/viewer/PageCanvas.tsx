@@ -1,10 +1,14 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { getPageProxy } from '../../lib/pdf/registry'
 import { TextLayer, type PDFPageProxy } from '../../lib/pdf/pdfjs'
-import type { Annotation, DocPage } from '../../state/types'
+import type { Annotation, DocPage, Rect } from '../../state/types'
 import { useApp } from '../../state/store'
 import { selectionQuads } from '../../lib/pdf/textMarkup'
-import { makeTextMarkup } from '../../lib/annotations/factory'
+import {
+  makeTextMarkup,
+  makeTextBox,
+  makeWhiteout,
+} from '../../lib/annotations/factory'
 import { AnnotationLayer } from './AnnotationLayer'
 import { FormLayer } from './FormLayer'
 
@@ -30,6 +34,7 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
   const tool = useApp((s) => s.ui.activeTool)
   const opts = useApp((s) => s.ui.tool)
   const addAnnotation = useApp((s) => s.addAnnotation)
+  const addAnnotations = useApp((s) => s.addAnnotations)
   const annotationsMap = useApp((s) =>
     s.docs.find((d) => d.id === docId)?.annotations,
   )
@@ -158,7 +163,10 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
 
   // text-markup tools: turn the current text selection into an annotation
   const isMarkup =
-    tool === 'highlight' || tool === 'underline' || tool === 'strikeout'
+    tool === 'highlight' ||
+    tool === 'underline' ||
+    tool === 'strikeout' ||
+    tool === 'replace-text'
 
   const applyMarkupFromSelection = () => {
     const sel = window.getSelection()
@@ -171,6 +179,48 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
     const pageBox = wrap.getBoundingClientRect()
     const quads = selectionQuads(range, textEl, page, pageBox, scale)
     if (!quads.length) return
+    const text = sel.toString()
+
+    if (tool === 'replace-text') {
+      const union = quads.reduce((u, q) => ({
+        x: Math.min(u.x, q.x),
+        y: Math.min(u.y, q.y),
+        w: Math.max(u.x + u.w, q.x + q.w) - Math.min(u.x, q.x),
+        h: Math.max(u.y + u.h, q.y + q.h) - Math.min(u.y, q.y),
+      }))
+      const bg = sampleBackground(canvasRef.current, union, scale, rotation)
+      const fontSize = Math.round(
+        (quads.reduce((n, q) => n + q.h, 0) / quads.length) * 0.82,
+      )
+      const pad = 1.5
+      addAnnotations([
+        makeWhiteout(
+          page.id,
+          {
+            x: union.x - pad,
+            y: union.y - pad,
+            w: union.w + pad * 2,
+            h: union.h + pad * 2,
+          },
+          bg,
+        ),
+        {
+          ...makeTextBox(
+            page.id,
+            { x: union.x, y: union.y - 1, w: Math.max(union.w, 40), h: union.h + 4 },
+            { ...opts, fontSize },
+            'textbox',
+          ),
+          text,
+          background: 'transparent',
+          borderColor: 'transparent',
+          color: '#16191d',
+        },
+      ])
+      sel.removeAllRanges()
+      return
+    }
+
     addAnnotation(
       makeTextMarkup(
         page.id,
@@ -226,6 +276,44 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
 }
 
 export const PageCanvas = memo(PageCanvasImpl)
+
+/**
+ * Estimate the page background colour just outside a text rect by sampling the
+ * rendered canvas a few px above it. Falls back to white.
+ */
+function sampleBackground(
+  canvas: HTMLCanvasElement | null,
+  rect: Rect,
+  scale: number,
+  rotation: 0 | 90 | 180 | 270,
+): string {
+  if (!canvas || rotation !== 0) return '#ffffff'
+  try {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx || !canvas.clientWidth) return '#ffffff'
+    const k = (canvas.width / canvas.clientWidth) * scale // pt -> device px
+    const sx = Math.max(0, Math.round((rect.x + 2) * k))
+    const sy = Math.max(0, Math.round((rect.y - 3) * k))
+    const strip = ctx.getImageData(sx, sy, Math.min(24, canvas.width - sx), 2)
+    let r = 0
+    let g = 0
+    let b = 0
+    const n = strip.data.length / 4
+    for (let i = 0; i < strip.data.length; i += 4) {
+      r += strip.data[i]
+      g += strip.data[i + 1]
+      b += strip.data[i + 2]
+    }
+    if (!n) return '#ffffff'
+    const hex = (v: number) =>
+      Math.round(v / n)
+        .toString(16)
+        .padStart(2, '0')
+    return `#${hex(r)}${hex(g)}${hex(b)}`
+  } catch {
+    return '#ffffff'
+  }
+}
 
 /** Build a selectable/searchable text layer from OCR word boxes. */
 function renderOcrLayer(

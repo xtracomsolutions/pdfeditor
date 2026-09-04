@@ -84,6 +84,7 @@ export interface AppState {
 
   // ---- annotations ----
   addAnnotation: (a: Annotation) => void
+  addAnnotations: (a: Annotation[]) => void
   updateAnnotation: (id: string, patch: Partial<Annotation>) => void
   removeAnnotations: (ids: string[]) => void
   setFieldValue: (name: string, value: string | boolean) => void
@@ -221,14 +222,17 @@ export const useApp = create<AppState>()(
         if (d) d.name = name
       }),
 
-    addAnnotation: (a) => {
+    addAnnotation: (a) => get().addAnnotations([a]),
+
+    addAnnotations: (list) => {
+      if (!list.length) return
       get().commit()
       set((s) => {
         const d = s.docs.find((x) => x.id === s.activeDocId)
         if (!d) return
-        d.annotations[a.id] = a
+        for (const a of list) d.annotations[a.id] = a
         d.dirty = true
-        s.ui.selectedIds = [a.id]
+        s.ui.selectedIds = list.map((a) => a.id)
       })
     },
 

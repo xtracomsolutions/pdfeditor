@@ -25,6 +25,7 @@ export type ToolId =
   | 'image'
   | 'redact'
   | 'whiteout'
+  | 'replace-text'
   | 'signature'
   | 'form-fill'
 
