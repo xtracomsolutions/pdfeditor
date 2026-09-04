@@ -21,6 +21,7 @@ import {
 } from 'pdf-lib'
 import type {
   Annotation,
+  ImageAnnotation,
   InkAnnotation,
   OpenDoc,
   ShapeAnnotation,
@@ -55,19 +56,39 @@ export async function exportPdf(
   doc: OpenDoc,
   opts: ExportOptions = {},
 ): Promise<Uint8Array> {
-  const src = await PDFDocument.load(doc.bytes, { ignoreEncryption: true })
   const out = await PDFDocument.create()
   const helv = await out.embedFont(StandardFonts.Helvetica)
   const helvBold = await out.embedFont(StandardFonts.HelveticaBold)
+
+  // one PDFDocument per distinct source, loaded lazily
+  const sources = new Map<string, Promise<PDFDocument>>()
+  const sourceDoc = (id: string) => {
+    let p = sources.get(id)
+    if (!p) {
+      const bytes = doc.sources.find((s) => s.id === id)!.bytes
+      p = PDFDocument.load(bytes, { ignoreEncryption: true })
+      sources.set(id, p)
+    }
+    return p
+  }
 
   // rebuild page order from the model, carrying user rotation. Copy each page
   // on its own so duplicated source pages produce independent page objects.
   for (let i = 0; i < doc.pages.length; i++) {
     const dp = doc.pages[i]
     let page: PDFPage
-    if (dp.sourceIndex >= 0) {
-      const [p] = await out.copyPages(src, [dp.sourceIndex])
+    if (dp.sourceId) {
+      const sd = await sourceDoc(dp.sourceId)
+      const [p] = await out.copyPages(sd, [dp.sourceIndex])
       page = out.addPage(p)
+    } else if (dp.imageAssetId) {
+      page = out.addPage([dp.width, dp.height])
+      await embedAsset(out, page, dp.imageAssetId, {
+        x: 0,
+        y: 0,
+        w: dp.width,
+        h: dp.height,
+      })
     } else {
       page = out.addPage([dp.width, dp.height])
     }
@@ -78,7 +99,7 @@ export async function exportPdf(
     }
 
     const anns = Object.values(doc.annotations).filter((a) => a.pageId === dp.id)
-    for (const a of anns) drawAnnotation(page, a, { helv, helvBold, out })
+    for (const a of anns) await drawAnnotation(page, a, { helv, helvBold, out })
   }
 
   if (opts.scrubMetadata || opts.mode !== 'editable') {
@@ -99,13 +120,19 @@ interface Ctx {
   out: PDFDocument
 }
 
-function drawAnnotation(page: PDFPage, a: Annotation, ctx: Ctx) {
+async function drawAnnotation(page: PDFPage, a: Annotation, ctx: Ctx) {
   const H = page.getHeight()
   const flipY = (y: number) => H - y
   const color = a.color ? hexToRgb(a.color) : rgb(0.9, 0.1, 0.1)
   const opacity = a.opacity ?? 1
 
   switch (a.kind) {
+    case 'image':
+    case 'signature': {
+      const img = a as ImageAnnotation
+      await embedAsset(ctx.out, page, img.assetId, a.rect)
+      break
+    }
     case 'highlight': {
       const m = a as TextMarkupAnnotation
       for (const q of m.quads)

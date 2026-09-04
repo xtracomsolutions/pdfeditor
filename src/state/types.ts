@@ -151,15 +151,31 @@ export type Annotation =
   | RedactionAnnotation
   | FieldValueAnnotation
 
+/**
+ * A page in the working document. It renders and exports from one of:
+ *  - a PDF source (the original, or another PDF merged in) at `sourceIndex`
+ *  - a blank page (`sourceId` null, no image)
+ *  - an image placed as a full page (`imageAssetId`)
+ */
 export interface DocPage {
   id: string
-  /** Index into the original pdf.js document (0-based); -1 for inserted pages. */
+  /** Which PdfSource this page comes from; null for blank / image pages. */
+  sourceId: string | null
+  /** 0-based page index within that source. */
   sourceIndex: number
+  imageAssetId?: string
   width: number
   height: number
   /** Extra view rotation the user applied, added to the page's intrinsic one. */
   userRotation: 0 | 90 | 180 | 270
   deleted?: boolean
+}
+
+export interface PdfSource {
+  id: string
+  /** Immutable bytes for this source PDF (original or a merged-in file). */
+  bytes: Uint8Array
+  label: string
 }
 
 export interface OutlineNode {
@@ -171,9 +187,8 @@ export interface OutlineNode {
 export interface OpenDoc {
   id: string
   name: string
-  /** Immutable original bytes as loaded. */
-  bytes: Uint8Array
-  pageCount: number
+  /** All PDF sources this doc draws pages from; sources[0] is the original. */
+  sources: PdfSource[]
   pages: DocPage[]
   outline: OutlineNode[]
   annotations: Record<string, Annotation>

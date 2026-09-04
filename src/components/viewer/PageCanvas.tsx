@@ -64,8 +64,32 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
     let cancelled = false
     let task: ReturnType<PDFPageProxy['render']> | null = null
 
+    // blank / image pages have no PDF source
+    if (page.sourceId == null) {
+      const canvas = canvasRef.current
+      const ctx = canvas?.getContext('2d')
+      if (canvas && ctx) {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2)
+        canvas.width = Math.floor(cssW * dpr)
+        canvas.height = Math.floor(cssH * dpr)
+        ctx.fillStyle = '#fff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        if (page.imageAssetId) {
+          import('../../lib/storage/db').then(async ({ getAsset }) => {
+            const rec = await getAsset(page.imageAssetId!)
+            if (!rec || cancelled) return
+            const bmp = await createImageBitmap(rec.blob)
+            ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height)
+            setRendered(true)
+          })
+        }
+      }
+      setRendered(true)
+      return
+    }
+
     ;(async () => {
-      const proxyP = getPageProxy(docId, page.sourceIndex)
+      const proxyP = getPageProxy(docId, page.sourceId, page.sourceIndex)
       if (!proxyP) return
       const proxy = await proxyP
       if (cancelled) return
@@ -113,7 +137,17 @@ function PageCanvasImpl({ docId, page, pageNumber, scale }: Props) {
       cancelled = true
       task?.cancel()
     }
-  }, [visible, docId, page.sourceIndex, scale, rotation])
+  }, [
+    visible,
+    docId,
+    page.sourceId,
+    page.sourceIndex,
+    page.imageAssetId,
+    cssW,
+    cssH,
+    scale,
+    rotation,
+  ])
 
   // text-markup tools: turn the current text selection into an annotation
   const isMarkup =

@@ -10,13 +10,13 @@ export function useOpenFiles() {
 
   const openBytes = useCallback(
     async (name: string, bytes: Uint8Array, size: number) => {
-      const { meta, doc } = await buildOpenDoc(name, bytes)
+      const { meta, doc, sourceId } = await buildOpenDoc(name, bytes)
       const id = addDoc(meta)
-      registerPdf(id, doc)
+      registerPdf(id, sourceId, doc)
       void putRecent({
         id: nanoid(),
         name,
-        pageCount: meta.pageCount,
+        pageCount: meta.pages.length,
         size,
         openedAt: Date.now(),
       })
@@ -28,7 +28,8 @@ export function useOpenFiles() {
   const openFiles = useCallback(
     async (files: FileList | File[]) => {
       const pdfs = Array.from(files).filter(
-        (f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'),
+        (f) =>
+          f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'),
       )
       for (const f of pdfs) {
         const buf = new Uint8Array(await f.arrayBuffer())

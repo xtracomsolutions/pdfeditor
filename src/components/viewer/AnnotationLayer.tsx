@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { clone, useApp } from '../../state/store'
 import type {
   Annotation,
   DocPage,
+  ImageAnnotation,
   InkAnnotation,
   Point,
   ShapeAnnotation,
@@ -16,8 +17,10 @@ import {
 } from '../../lib/pdf/geometry'
 import {
   isDragTool,
+  makeImageAnn,
   makeInk,
   makeShape,
+  makeStamp,
   makeTextBox,
 } from '../../lib/annotations/factory'
 import { AnnotationView } from './AnnotationView'
@@ -37,6 +40,8 @@ type Draft =
 export function AnnotationLayer({ page, scale, annotations }: Props) {
   const tool = useApp((s) => s.ui.activeTool)
   const opts = useApp((s) => s.ui.tool)
+  const placement = useApp((s) => s.ui.placement)
+  const setPlacement = useApp((s) => s.setPlacement)
   const selectedIds = useApp((s) => s.ui.selectedIds)
   const addAnnotation = useApp((s) => s.addAnnotation)
   const updateAnnotation = useApp((s) => s.updateAnnotation)
@@ -56,7 +61,15 @@ export function AnnotationLayer({ page, scale, annotations }: Props) {
     committed: boolean
   } | null>(null)
 
-  const isDraw = tool === 'ink' || isDragTool(tool) || tool === 'textbox' || tool === 'note'
+  const isPlace =
+    !!placement &&
+    (tool === 'signature' || tool === 'image' || tool === 'stamp')
+  const isDraw =
+    tool === 'ink' ||
+    isDragTool(tool) ||
+    tool === 'textbox' ||
+    tool === 'note' ||
+    isPlace
   const localPoint = (e: React.PointerEvent): Point => {
     const box = ref.current!.getBoundingClientRect()
     return screenToPdf(t, e.clientX - box.left, e.clientY - box.top)
@@ -67,6 +80,36 @@ export function AnnotationLayer({ page, scale, annotations }: Props) {
     if (!isDraw) return
     ;(e.target as HTMLElement).setPointerCapture?.(e.pointerId)
     const p = localPoint(e)
+    if (isPlace && placement) {
+      if (placement.kind === 'stamp') {
+        const w = 120
+        const h = 40
+        addAnnotation(
+          makeStamp(
+            page.id,
+            { x: p.x - w / 2, y: p.y - h / 2, w, h },
+            placement.label ?? 'APPROVED',
+            placement.stampStyle ?? 'approved',
+            placement.color ?? opts.stroke,
+          ),
+        )
+      } else if (placement.assetId) {
+        const w = placement.kind === 'signature' ? 160 : 200
+        const aspect = placement.aspect || 3
+        const h = w / aspect
+        addAnnotation(
+          makeImageAnn(
+            page.id,
+            placement.kind,
+            { x: p.x - w / 2, y: p.y - h / 2, w, h },
+            placement.assetId,
+          ),
+        )
+      }
+      setPlacement(null)
+      setTool('select')
+      return
+    }
     if (tool === 'ink') setDraft({ kind: 'ink', points: [p.x, p.y] })
     else if (tool === 'textbox' || tool === 'note') {
       const w = tool === 'note' ? 24 : 160
@@ -248,7 +291,7 @@ export function AnnotationLayer({ page, scale, annotations }: Props) {
         {draft?.kind === 'shape' && <DraftShape draft={draft} t={t} opts={opts} />}
       </svg>
 
-      {/* HTML annotations (text boxes, notes) render above the svg */}
+      {/* HTML annotations (text boxes, notes, images) render above the svg */}
       {annotations
         .filter((a) => a.kind === 'textbox' || a.kind === 'note')
         .map((a) => (
@@ -261,6 +304,20 @@ export function AnnotationLayer({ page, scale, annotations }: Props) {
             onSelect={() => select([a.id])}
             onBeginMove={(e) => beginDrag(e, a, 'move')}
             onChange={(patch) => updateAnnotation(a.id, patch)}
+          />
+        ))}
+      {annotations
+        .filter((a) => a.kind === 'image' || a.kind === 'signature')
+        .map((a) => (
+          <ImageView
+            key={a.id}
+            ann={a as ImageAnnotation}
+            t={t}
+            selected={selectedIds.includes(a.id)}
+            selectTool={tool === 'select'}
+            onSelect={() => select([a.id])}
+            onBeginMove={(e) => beginDrag(e, a, 'move')}
+            onBeginResize={(e) => beginDrag(e, a, 'resize')}
           />
         ))}
     </div>
@@ -361,6 +418,77 @@ function TextBoxView({
           lineHeight: 1.2,
         }}
       />
+    </div>
+  )
+}
+
+function ImageView({
+  ann,
+  t,
+  selected,
+  selectTool,
+  onSelect,
+  onBeginMove,
+  onBeginResize,
+}: {
+  ann: ImageAnnotation
+  t: ReturnType<typeof pageTransform>
+  selected: boolean
+  selectTool: boolean
+  onSelect: () => void
+  onBeginMove: (e: React.PointerEvent) => void
+  onBeginResize: (e: React.PointerEvent) => void
+}) {
+  const [url, setUrl] = useState<string | null>(null)
+  useEffect(() => {
+    let u: string | null = null
+    let alive = true
+    import('../../lib/storage/db').then(async ({ getAsset }) => {
+      const rec = await getAsset(ann.assetId)
+      if (rec && alive) {
+        u = URL.createObjectURL(rec.blob)
+        setUrl(u)
+      }
+    })
+    return () => {
+      alive = false
+      if (u) URL.revokeObjectURL(u)
+    }
+  }, [ann.assetId])
+
+  const p = pdfToScreen(t, ann.rect.x, ann.rect.y)
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: p.x,
+        top: p.y,
+        width: ann.rect.w * t.scale,
+        height: ann.rect.h * t.scale,
+        pointerEvents: selectTool ? 'auto' : 'none',
+        outline: selected ? '1.5px solid var(--color-accent)' : 'none',
+        cursor: selectTool ? 'move' : 'default',
+      }}
+      onPointerDown={(e) => selectTool && onBeginMove(e)}
+      onClick={onSelect}
+    >
+      {url && (
+        <img
+          src={url}
+          alt={ann.kind}
+          className="h-full w-full object-contain"
+          draggable={false}
+        />
+      )}
+      {selected && selectTool && (
+        <div
+          className="absolute -bottom-1.5 -right-1.5 h-3 w-3 cursor-nwse-resize bg-accent"
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            onBeginResize(e)
+          }}
+        />
+      )}
     </div>
   )
 }

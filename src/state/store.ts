@@ -14,6 +14,7 @@ import type {
   DocPage,
   OpenDoc,
   OutlineNode,
+  PdfSource,
   ToolId,
 } from './types'
 
@@ -53,6 +54,18 @@ interface UIState {
   selectedIds: string[]
   currentPage: number
   tool: ToolOptions
+  /** An "armed" object waiting to be dropped on a page by the next click. */
+  placement: Placement | null
+}
+
+export interface Placement {
+  kind: 'signature' | 'image' | 'stamp'
+  assetId?: string
+  /** width / height, for sizing the dropped annotation */
+  aspect?: number
+  label?: string
+  color?: string
+  stampStyle?: 'approved' | 'draft' | 'confidential' | 'received' | 'custom'
 }
 
 export interface AppState {
@@ -77,8 +90,15 @@ export interface AppState {
   reorderPage: (from: number, to: number) => void
   rotatePage: (pageId: string, delta: 90 | -90) => void
   deletePage: (pageId: string) => void
+  deletePages: (pageIds: string[]) => void
   duplicatePage: (pageId: string) => void
   setPages: (pages: DocPage[]) => void
+  addSource: (docId: string, source: PdfSource) => void
+  /** Insert pages after `afterPageId` (null = prepend, undefined = append). */
+  insertPages: (
+    afterPageId: string | null | undefined,
+    pages: DocPage[],
+  ) => void
   setOutline: (outline: OutlineNode[]) => void
   markTextLayerReady: (docId: string) => void
 
@@ -91,6 +111,7 @@ export interface AppState {
 
   // ---- ui ----
   setTool: (t: ToolId) => void
+  setPlacement: (p: Placement | null) => void
   setToolOption: <K extends keyof ToolOptions>(k: K, v: ToolOptions[K]) => void
   setZoom: (z: number, fit?: FitMode) => void
   setFitMode: (f: FitMode) => void
@@ -134,6 +155,7 @@ export const useApp = create<AppState>()(
       searchQuery: '',
       selectedIds: [],
       currentPage: 1,
+      placement: null,
       tool: {
         stroke: '#e5484d',
         fill: 'transparent',
@@ -250,15 +272,20 @@ export const useApp = create<AppState>()(
       })
     },
 
-    deletePage: (pageId) => {
+    deletePage: (pageId) => get().deletePages([pageId]),
+
+    deletePages: (pageIds) => {
       get().commit()
       set((s) => {
         const d = s.docs.find((x) => x.id === s.activeDocId)
-        if (!d || d.pages.length <= 1) return
-        d.pages = d.pages.filter((p) => p.id !== pageId)
+        if (!d) return
+        const remove = new Set(pageIds)
+        if (d.pages.length - remove.size < 1) return
+        d.pages = d.pages.filter((p) => !remove.has(p.id))
         for (const [aid, a] of Object.entries(d.annotations))
-          if (a.pageId === pageId) delete d.annotations[aid]
+          if (remove.has(a.pageId)) delete d.annotations[aid]
         d.dirty = true
+        s.ui.selectedIds = []
       })
     },
 
@@ -283,6 +310,32 @@ export const useApp = create<AppState>()(
           d.pages = pages
           d.dirty = true
         }
+      })
+    },
+
+    addSource: (docId, source) =>
+      set((s) => {
+        const d = s.docs.find((x) => x.id === docId)
+        if (d && !d.sources.some((src) => src.id === source.id))
+          d.sources.push(source)
+      }),
+
+    insertPages: (afterPageId, pages) => {
+      if (!pages.length) return
+      get().commit()
+      set((s) => {
+        const d = s.docs.find((x) => x.id === s.activeDocId)
+        if (!d) return
+        let at: number
+        if (afterPageId === null) at = 0
+        else if (afterPageId === undefined) at = d.pages.length
+        else {
+          const i = d.pages.findIndex((p) => p.id === afterPageId)
+          at = i < 0 ? d.pages.length : i + 1
+        }
+        d.pages.splice(at, 0, ...pages)
+        d.dirty = true
+        s.ui.selectedIds = []
       })
     },
 
@@ -351,6 +404,12 @@ export const useApp = create<AppState>()(
     setTool: (t) =>
       set((s) => {
         s.ui.activeTool = t
+        if (t !== 'signature' && t !== 'image' && t !== 'stamp')
+          s.ui.placement = null
+      }),
+    setPlacement: (p) =>
+      set((s) => {
+        s.ui.placement = p
       }),
     setToolOption: (k, v) =>
       set((s) => {

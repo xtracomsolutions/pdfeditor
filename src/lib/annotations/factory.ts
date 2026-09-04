@@ -5,6 +5,7 @@ import type {
   Point,
   Rect,
   ShapeAnnotation,
+  StampAnnotation,
   TextBoxAnnotation,
   TextMarkupAnnotation,
 } from '../../state/types'
@@ -100,6 +101,25 @@ export function makeTextBox(
     borderColor: kind === 'note' ? 'transparent' : o.stroke,
     opacity: 1,
   }
+}
+
+export function makeImageAnn(
+  pageId: string,
+  kind: 'image' | 'signature',
+  rect: Rect,
+  assetId: string,
+): import('../../state/types').ImageAnnotation {
+  return { ...base(pageId), kind, rect, assetId, opacity: 1 }
+}
+
+export function makeStamp(
+  pageId: string,
+  rect: Rect,
+  label: string,
+  style: StampAnnotation['style'],
+  color: string,
+): StampAnnotation {
+  return { ...base(pageId), kind: 'stamp', rect, label, style, color }
 }
 
 export function isTextMarkupTool(t: string) {

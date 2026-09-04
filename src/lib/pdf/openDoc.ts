@@ -13,7 +13,9 @@ export type DocMeta = Omit<OpenDoc, 'id' | 'createdAt' | 'dirty'>
 
 export interface BuiltDoc {
   meta: DocMeta
+  /** Live pdf.js proxy for sources[0]. */
   doc: PDFDocumentProxy
+  sourceId: string
 }
 
 export async function buildOpenDoc(
@@ -21,6 +23,7 @@ export async function buildOpenDoc(
   bytes: Uint8Array,
 ): Promise<BuiltDoc> {
   const { doc, pageCount } = await loadPdf(bytes)
+  const sourceId = nanoid()
 
   const pages: DocMeta['pages'] = []
   let textChars = 0
@@ -29,6 +32,7 @@ export async function buildOpenDoc(
     const vp = page.getViewport({ scale: 1, rotation: 0 })
     pages.push({
       id: nanoid(),
+      sourceId,
       sourceIndex: i,
       width: vp.width,
       height: vp.height,
@@ -44,10 +48,10 @@ export async function buildOpenDoc(
 
   return {
     doc,
+    sourceId,
     meta: {
       name,
-      bytes,
-      pageCount,
+      sources: [{ id: sourceId, bytes, label: name }],
       pages,
       outline: rawOutline as OutlineNode[],
       annotations: {},

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApp } from '../state/store'
 import { useOpenFiles } from '../lib/useOpenFiles'
+import { usePageOps } from '../lib/usePageOps'
 import { TopBar } from './TopBar'
 import { TabStrip } from './TabStrip'
 import { ToolOptionsBar } from './ToolOptionsBar'
@@ -9,29 +10,77 @@ import { ThumbnailRail } from './ThumbnailRail'
 import { OutlinePanel } from './OutlinePanel'
 import { PropertiesPanel } from './PropertiesPanel'
 import { SearchBar } from './SearchBar'
+import { SignatureDialog } from './SignatureDialog'
+import { StampPalette } from './StampPalette'
 import { StartScreen } from './StartScreen'
 import { Viewer } from './viewer/Viewer'
+import { nanoid } from '../lib/id'
+import { putAsset } from '../lib/storage/db'
 
 export function AppShell() {
-  const docs = useApp((s) => s.docs)
+  const hasDocs = useApp((s) => s.docs.length > 0)
   const doc = useApp((s) => s.docs.find((d) => d.id === s.activeDocId) ?? null)
   const ui = useApp((s) => s.ui)
-  const { undo, redo, setSearch, setTool, removeAnnotations, select } = useApp()
+  const undo = useApp((s) => s.undo)
+  const redo = useApp((s) => s.redo)
+  const setSearch = useApp((s) => s.setSearch)
+  const setTool = useApp((s) => s.setTool)
+  const removeAnnotations = useApp((s) => s.removeAnnotations)
+  const select = useApp((s) => s.select)
   const selectedIds = useApp((s) => s.ui.selectedIds)
+  const setPlacement = useApp((s) => s.setPlacement)
   const { openFiles, openBytes } = useOpenFiles()
+  const pageOps = usePageOps()
   const [dragging, setDragging] = useState(false)
+  const [sigOpen, setSigOpen] = useState(false)
 
-  // dev-only: load a PDF by URL from the console (window.__openPdf('/x.pdf'))
+  // signature tool with nothing armed -> open the signature dialog
+  useEffect(() => {
+    if (ui.activeTool === 'signature' && !ui.placement) setSigOpen(true)
+  }, [ui.activeTool, ui.placement])
+
+  // image tool with nothing armed -> pick a file and arm placement
+  useEffect(() => {
+    if (ui.activeTool !== 'image' || ui.placement) return
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = async () => {
+      const f = input.files?.[0]
+      if (!f) {
+        setTool('select')
+        return
+      }
+      const assetId = nanoid()
+      await putAsset(assetId, f)
+      const bmp = await createImageBitmap(f)
+      setPlacement({
+        kind: 'image',
+        assetId,
+        aspect: bmp.width / bmp.height,
+      })
+    }
+    input.oncancel = () => setTool('select')
+    input.click()
+  }, [ui.activeTool, ui.placement, setPlacement, setTool])
+
+  // dev-only console helpers
   useEffect(() => {
     if (!import.meta.env.DEV) return
-    ;(window as unknown as { __openPdf: (u: string) => void }).__openPdf = async (
-      url: string,
-    ) => {
+    const w = window as unknown as Record<string, unknown>
+    w.__openPdf = async (url: string) => {
       const r = await fetch(url)
       const b = new Uint8Array(await r.arrayBuffer())
       await openBytes(url.split('/').pop() || 'document.pdf', b, b.length)
     }
-  }, [openBytes])
+    w.__mergePdf = async (url: string) => {
+      const r = await fetch(url)
+      const f = new File([await r.blob()], url.split('/').pop() || 'merge.pdf', {
+        type: 'application/pdf',
+      })
+      await pageOps.mergePdf([f])
+    }
+  }, [openBytes, pageOps])
 
   // global keyboard shortcuts
   useEffect(() => {
@@ -98,9 +147,21 @@ export function AppShell() {
       <TopBar />
       <TabStrip />
       {doc && <ToolOptionsBar />}
+      {doc && ui.activeTool === 'stamp' && !ui.placement && <StampPalette />}
+      <SignatureDialog
+        open={sigOpen}
+        onOpenChange={(v) => {
+          setSigOpen(v)
+          if (!v) {
+            const st = useApp.getState()
+            if (st.ui.activeTool === 'signature' && !st.ui.placement)
+              setTool('select')
+          }
+        }}
+      />
 
       <div className="relative flex min-h-0 flex-1">
-        {docs.length > 0 && <Toolbar />}
+        {hasDocs && <Toolbar />}
 
         {doc && ui.showOutline && <OutlinePanel doc={doc} />}
         {doc && ui.showThumbnails && <ThumbnailRail doc={doc} />}

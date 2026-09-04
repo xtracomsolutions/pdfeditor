@@ -34,7 +34,8 @@ export function SearchBar({ doc }: { doc: OpenDoc }) {
       const found: Hit[] = []
       for (let i = 0; i < doc.pages.length; i++) {
         if (id !== runId.current) return
-        const pp = getPageProxy(doc.id, doc.pages[i].sourceIndex)
+        const pg = doc.pages[i]
+        const pp = getPageProxy(doc.id, pg.sourceId, pg.sourceIndex)
         if (!pp) continue
         const page = await pp
         const tc = await page.getTextContent()
